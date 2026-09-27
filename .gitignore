@@ -1,0 +1,7 @@
+# Exported stable backups (personal data; the app only reads them through the Import button)
+stable*.json
+# Identical duplicate of horse_calculator.jsx
+minecraft_horse.jsx
+.claude/
+*.tmp
+~$*
