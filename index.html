@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Horse Perfection — Minecraft Horse Calculator</title>
+  <meta name="description" content="Minecraft horse and donkey calculator: perfection score from speed, jump and health, a saved stable, and breeding advice." />
+  <!-- Empty icon: stops a 404 console error for favicon.ico without showing any icon -->
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
@@ -12,11 +16,12 @@
     body { font-family: "VT323", "Courier New", monospace; }
   </style>
 
-  <!-- React + ReactDOM (development builds for clear errors) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel standalone so we can write JSX inline -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- React + ReactDOM. Versions are pinned: an unpinned @babel/standalone
+       jumped to Babel 8 (Oct 2026), which emits ES imports and blanked the page. -->
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone so we can write JSX inline (must stay on 7.x) -->
+  <script src="https://unpkg.com/@babel/standalone@7.29.9/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
@@ -226,8 +231,10 @@
         setItemsInput(text);
         const v = parseFloat(text);
         if (!isNaN(v) && v > 0) {
-          updatingFromItemsRef.current = true;
           const newSpeed = Math.max(MIN_SPEED, Math.min(MAX_SPEED, 760 / v));
+          // Only skip the next sync when speed really changes; otherwise the
+          // effect never runs, the flag sticks, and a later slider move is ignored.
+          if (newSpeed !== speed) updatingFromItemsRef.current = true;
           setSpeed(newSpeed);
         }
       }
@@ -251,6 +258,16 @@
         const newJump = Math.max(MIN_JUMP, Math.min(MAX_JUMP, raw));
         // If the value got clamped, let the sync effect rewrite blocks/layers
         // to match the clamped jump so the inputs don't show "1, 0" while jump=1.25.
+        if (newJump === jump) {
+          // No change means the sync effect won't run: rewrite the inputs here
+          // if they were clamped, and don't leave the skip flag set.
+          if (newJump !== raw) {
+            const totalEighths = Math.round(newJump * 8);
+            setJumpBlocks(String(Math.floor(totalEighths / 8)));
+            setJumpLayers(String(totalEighths % 8));
+          }
+          return;
+        }
         if (newJump === raw) {
           updatingFromBlocksRef.current = true;
         }
@@ -414,6 +431,13 @@
             const dt = Array.isArray(data.donkey_trash) ? data.donkey_trash : null;
             if (hp === null && ht === null && dp === null && dt === null) {
               throw new Error('no stable fields found');
+            }
+            // Reject the whole file if any entry lacks numeric stats: a bad entry
+            // saved to localStorage would crash the page on every load.
+            const isHorse = h => h && typeof h === 'object' &&
+              [h.speed, h.jump, h.hearts].every(n => typeof n === 'number' && isFinite(n));
+            if (![hp, ht, dp, dt].every(list => list === null || list.every(isHorse))) {
+              throw new Error('bad horse entry');
             }
             if (hp !== null) localStorage.setItem('horse_perfect', JSON.stringify(hp));
             if (ht !== null) localStorage.setItem('horse_trash', JSON.stringify(ht));
@@ -792,6 +816,7 @@
                       className="pixel-input"
                       value={itemsInput}
                       onChange={handleItemsChange}
+                      aria-label="items per trip"
                       min="1"
                       step="1"
                       placeholder="80"
@@ -847,6 +872,7 @@
                         className="pixel-input"
                         value={jumpBlocks}
                         onChange={handleBlocksChange}
+                        aria-label="jump blocks"
                         min="0"
                         max="5"
                         step="1"
@@ -866,6 +892,7 @@
                         className="pixel-input"
                         value={jumpLayers}
                         onChange={handleLayersChange}
+                        aria-label="snow layers"
                         min="0"
                         max="7"
                         step="1"
@@ -914,6 +941,7 @@
                 placeholder="e.g. Thunderbolt"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                aria-label="horse name"
                 maxLength={24}
                 style={{ marginBottom: 12 }}
               />
@@ -1033,6 +1061,7 @@
                   accept=".json,application/json"
                   ref={fileInputRef}
                   onChange={handleImportFile}
+                  aria-label="import stable file"
                   style={{ display: 'none' }}
                 />
               </div>
@@ -1084,8 +1113,10 @@
         setText(t);
         const v = parseFloat(t);
         if (!isNaN(v)) {
-          updatingFromTextRef.current = true;
-          onChange(Math.max(min, Math.min(max, v)));
+          const next = Math.max(min, Math.min(max, v));
+          // Same value: the sync effect won't run, so don't leave the skip flag set.
+          if (next !== value) updatingFromTextRef.current = true;
+          onChange(next);
         }
       }
 
@@ -1118,6 +1149,7 @@
                 step="any"
                 value={text}
                 onChange={handleTextChange}
+                aria-label={`${label.toLowerCase()} value`}
                 onBlur={handleTextBlur}
                 style={{
                   fontSize: 20,
@@ -1140,6 +1172,7 @@
           <input
             type="range"
             className="pixel-slider"
+            aria-label={`${label.toLowerCase()} slider`}
             min={min}
             max={max}
             step={step}
