@@ -12,6 +12,7 @@ Keep the published calculator working. No feature work is planned.
 | Live site | Working again after 2026-10-16 fix (was blank: unpinned Babel 8) |
 | Calculator, stable, breeding, backup | Working (checked with phone-view 2026-10-16) |
 | Tests | None (single-file app; verified with phone-view) |
+| Site icon | 2026-10-17: `icon.svg` (pixel-art brown horse head on green) tab favicon + `apple-touch-icon.png` for iPhone |
 
 ## Authorized next steps
 None.
